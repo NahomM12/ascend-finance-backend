@@ -122,5 +122,16 @@ return [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
+/*
+*
+    |--------------------------------------------------------------------------
+    | Frontend URL
+    |--------------------------------------------------------------------------
+    |
+    | This URL is used to specify the URL of the frontend application, which
+    | can be used for generating links or redirects to the frontend from the
+    | backend. Set this in your ".env" file.
+ */    
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
 
 ];
