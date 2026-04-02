@@ -22,8 +22,10 @@ Route::middleware('throttle:api')->group(function () {
     Route::post('/investors/register', [RegistrationController::class, 'investorRegister'])->middleware('throttle:login');
 
     // OAuth Routes
+    Route::middleware(['web'])->group(function () {
     Route::get('/oauth/{provider}/redirect', [RegistrationController::class, 'redirectToProvider']);
     Route::get('/oauth/{provider}/callback', [RegistrationController::class, 'handleProviderCallback']);
+});
     Route::post('/oauth/{provider}/login', [RegistrationController::class, 'oauthLogin']);
 
     Route::get('/user', function (Request $request) {
