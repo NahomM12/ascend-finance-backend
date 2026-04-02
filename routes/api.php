@@ -108,5 +108,13 @@ Route::middleware('throttle:api')->group(function () {
         'redis_facade' => $redisValue,
         'status' => 'Redis is configured correctly'
     ]);
+    Route::get('/oauth-debug', function () {
+    return response()->json([
+        'expected_redirect_uri' => config('services.google.redirect'),
+        'actual_api_route' => url('/api/oauth/google/callback'),
+        'actual_web_route' => url('/oauth/google/callback'),
+        'app_url' => config('app.url'),
+    ]);
+});
 });
 });

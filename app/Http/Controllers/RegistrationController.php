@@ -118,16 +118,32 @@ class RegistrationController extends Controller
     /**
      * Redirect to OAuth provider.
      */
-    public function redirectToProvider($provider)
-    {
-        return Socialite::driver($provider)->stateless()->redirect();
-    }
-
+  public function redirectToProvider($provider)
+{
+    Log::channel('stack')->info('🔵 OAuth redirect started', [
+        'provider' => $provider,
+        'redirect_uri' => config('services.google.redirect'),
+        'full_url' => url()->full(),
+        'session_id' => session()->getId(),
+    ]);
+    
+    return Socialite::driver($provider)->stateless()->redirect();
+}
     /**
      * Handle OAuth provider callback.
      */
     public function handleProviderCallback($provider)
     {
+         Log::channel('stack')->info('🟢 OAuth callback received', [
+        'provider' => $provider,
+        'full_url' => request()->fullUrl(),
+        'all_query_params' => request()->query(),
+        'has_code' => request()->has('code'),
+        'has_error' => request()->has('error'),
+        'error_param' => request()->get('error'),
+        'session_id' => session()->getId(),
+        'ip' => request()->ip(),
+    ]);
         try {
             $oauthUser = Socialite::driver($provider)->stateless()->user();
             
