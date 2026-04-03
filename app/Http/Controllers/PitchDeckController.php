@@ -429,6 +429,81 @@ class PitchDeckController extends Controller
             'ip_address' => $request->ip(),
         ]);
     }
+/**
+     * Secure file access endpoint for pitch decks.
+     */
+    public function accessFile(Request $request, $id)
+    {
+        // Authentication check
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['error' => 'Authentication required'], 401);
+        }
+
+        // Find the pitch deck
+        $pitchDeck = PitchDeck::findOrFail($id);
+
+        // Authorization check - admins can access all, users can access their own
+        if (!in_array($user->role, ['admin', 'superadmin']) && $pitchDeck->founder_id !== $user->id) {
+            return response()->json(['error' => 'Access denied'], 403);
+        }
+
+        // Check if file exists
+        if (!$pitchDeck->file_path || !Storage::disk('public')->exists($pitchDeck->file_path)) {
+            return response()->json(['error' => 'File not found'], 404);
+        }
+
+        // Get file information
+        $filePath = Storage::disk('public')->path($pitchDeck->file_path);
+        $fileName = basename($pitchDeck->file_path);
+        $mimeType = $this->getMimeType($pitchDeck->file_type);
+
+        // Log access for security
+        \Log::info('Pitch deck file accessed', [
+            'pitch_deck_id' => $pitchDeck->id,
+            'user_id' => $user->id,
+            'user_role' => $user->role,
+            'file_name' => $fileName,
+            'ip_address' => $request->ip()
+        ]);
+
+        // Serve the file securely
+        return response()->file($filePath, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => $this->getContentDisposition($mimeType, $pitchDeck->title),
+            'Cache-Control' => 'private, max-age=3600',
+            'X-Content-Type-Options' => 'nosniff'
+        ]);
+    }
+
+    /**
+     * Get appropriate MIME type for file.
+     */
+    private function getMimeType($fileType)
+    {
+        $mimeTypes = [
+            'pdf' => 'application/pdf',
+            'ppt' => 'application/vnd.ms-powerpoint',
+            'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        ];
+
+        return $mimeTypes[strtolower($fileType)] ?? 'application/octet-stream';
+    }
+
+    /**
+     * Get appropriate Content-Disposition header.
+     */
+    private function getContentDisposition($mimeType, $title)
+    {
+        $safeFileName = preg_replace('/[^a-zA-Z0-9.-]/', '_', $title);
+        
+        // PDFs can be displayed inline, others should be downloaded
+        if ($mimeType === 'application/pdf') {
+            return 'inline; filename="' . $safeFileName . '.pdf"';
+        }
+        
+        return 'attachment; filename="' . $safeFileName . '.' . pathinfo($safeFileName, PATHINFO_EXTENSION) . '"';
+    }
 
     /**
      * Download the specified pitch deck.

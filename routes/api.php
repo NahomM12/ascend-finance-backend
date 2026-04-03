@@ -47,6 +47,7 @@ Route::middleware('throttle:api')->group(function () {
     Route::get('/public/pitch-decks', [PitchDeckController::class, 'publicIndex']);
     Route::get('/public/pitch-decks/{id}', [PitchDeckController::class, 'publicShow']);
     Route::get('/pitch-decks/{id}/download', [PitchDeckController::class, 'download'])->middleware(['auth:sanctum']);
+    Route::get('/pitch-decks/{id}/file', [PitchDeckController::class, 'accessFile'])->middleware(['auth:sanctum']);
     Route::post('/pitch-decks', [PitchDeckController::class, 'store'])->middleware('auth:sanctum');
 
     Route::middleware(['auth:sanctum', 'admin'])->group(function () {
