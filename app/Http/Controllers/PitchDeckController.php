@@ -429,45 +429,36 @@ class PitchDeckController extends Controller
             'ip_address' => $request->ip(),
         ]);
     }
-/**
+  /**
      * Secure file access endpoint for pitch decks.
      */
     public function accessFile(Request $request, $id)
     {
-        // Authentication check
-        $user = $request->user();
-        if (!$user) {
-            return response()->json(['error' => 'Authentication required'], 401);
-        }
-
-        // Find the pitch deck
+        // Find pitch deck
         $pitchDeck = PitchDeck::findOrFail($id);
 
-        // Authorization check - admins can access all, users can access their own
-        if (!in_array($user->role, ['admin', 'superadmin']) && $pitchDeck->founder_id !== $user->id) {
-            return response()->json(['error' => 'Access denied'], 403);
+        // // Authorization check - admins can access all, users can access their own
+        $user = $request->user();
+        if (!in_array($user->role, ['admin', 'superadmin'])) {
+            return response()->json([
+                'error' => 'Access denied',
+                'message' => 'You do not have permission to access this file'
+            ], 403);
         }
 
         // Check if file exists
         if (!$pitchDeck->file_path || !Storage::disk('public')->exists($pitchDeck->file_path)) {
-            return response()->json(['error' => 'File not found'], 404);
+            return response()->json([
+                'error' => 'File not found',
+                'message' => 'The requested file does not exist'
+            ], 404);
         }
 
         // Get file information
         $filePath = Storage::disk('public')->path($pitchDeck->file_path);
-        $fileName = basename($pitchDeck->file_path);
         $mimeType = $this->getMimeType($pitchDeck->file_type);
 
-        // Log access for security
-        \Log::info('Pitch deck file accessed', [
-            'pitch_deck_id' => $pitchDeck->id,
-            'user_id' => $user->id,
-            'user_role' => $user->role,
-            'file_name' => $fileName,
-            'ip_address' => $request->ip()
-        ]);
-
-        // Serve the file securely
+        // Serve file securely
         return response()->file($filePath, [
             'Content-Type' => $mimeType,
             'Content-Disposition' => $this->getContentDisposition($mimeType, $pitchDeck->title),
@@ -504,7 +495,6 @@ class PitchDeckController extends Controller
         
         return 'attachment; filename="' . $safeFileName . '.' . pathinfo($safeFileName, PATHINFO_EXTENSION) . '"';
     }
-
     /**
      * Download the specified pitch deck.
      */
