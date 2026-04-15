@@ -125,42 +125,36 @@ class ThumbnailController extends Controller
      * Returns default if no thumbnail exists.
      */
     public function show($pitchDeckId)
-    {
-        $pitchDeck = PitchDeck::findOrFail($pitchDeckId);
-        
-        $thumbnailUrl = $this->getThumbnailUrl($pitchDeck);
-        
-        return response()->json([
-            'pitch_deck_id' => $pitchDeck->id,
-            'pitch_deck_title' => $pitchDeck->title,
-            'thumbnail_url' => $thumbnailUrl,
-            'has_custom_thumbnail' => !empty($pitchDeck->thumbnail_path),
-            'thumbnail_path' => $pitchDeck->thumbnail_path,
-            'file_type' => $pitchDeck->file_type
-        ]);
-    }
-    
-    /**
-     * Generate thumbnail URL (helper method).
-     */
-  public function getThumbnailUrl(PitchDeck $pitchDeck)
 {
-    $cacheKey = "thumbnail_url_{$pitchDeck->id}";
+    \Log::info('🖼️ Thumbnail show requested', [
+        'pitch_deck_id' => $pitchDeckId,
+        'ip' => request()->ip(),
+    ]);
     
-    return Cache::remember($cacheKey, 604800, function () use ($pitchDeck) { // 7 days
-        if ($pitchDeck->thumbnail_path && Storage::disk('public')->exists($pitchDeck->thumbnail_path)) {
-            return asset('storage/' . $pitchDeck->thumbnail_path);
-        }
-        
-        // Return default thumbnail based on file type
-        $defaults = [
-            'pdf' => asset('images/default-pdf-thumbnail.jpg'),
-            'ppt' => asset('images/default-ppt-thumbnail.jpg'),
-            'pptx' => asset('images/default-pptx-thumbnail.jpg'),
-        ];
-        
-        return $defaults[$pitchDeck->file_type] ?? asset('images/default-thumbnail.jpg');
-    });
+    $pitchDeck = PitchDeck::findOrFail($pitchDeckId);
+    
+    \Log::info('📊 Pitch deck found', [
+        'id' => $pitchDeck->id,
+        'title' => $pitchDeck->title,
+        'has_thumbnail_path' => !empty($pitchDeck->thumbnail_path),
+        'thumbnail_path' => $pitchDeck->thumbnail_path,
+    ]);
+    
+    $thumbnailUrl = $this->getThumbnailUrl($pitchDeck);
+    
+    \Log::info('🔗 Generated thumbnail URL', [
+        'url' => $thumbnailUrl,
+        'has_custom_thumbnail' => !empty($pitchDeck->thumbnail_path),
+    ]);
+    
+    return response()->json([
+        'pitch_deck_id' => $pitchDeck->id,
+        'pitch_deck_title' => $pitchDeck->title,
+        'thumbnail_url' => $thumbnailUrl,
+        'has_custom_thumbnail' => !empty($pitchDeck->thumbnail_path),
+        'thumbnail_path' => $pitchDeck->thumbnail_path,
+        'file_type' => $pitchDeck->file_type
+    ]);
 }
     
     /**
