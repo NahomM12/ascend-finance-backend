@@ -97,6 +97,7 @@ Route::middleware('throttle:api')->group(function () {
         Route::delete('/pitch-decks/{pitchDeck}/thumbnail', [ThumbnailController::class, 'delete']);
         Route::middleware('admin')->post('/thumbnails/bulk-convert', [ThumbnailController::class, 'bulkConvert']);
     });
+     Route::get('/thumbnails/{pitchDeckId}', [ThumbnailController::class, 'serveThumbnail']);
     Route::get('/test-redis', function () {
     // Test basic cache
     Cache::put('test_key', 'Redis is working!', 60);

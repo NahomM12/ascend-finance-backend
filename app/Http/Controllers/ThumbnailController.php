@@ -240,4 +240,40 @@ class ThumbnailController extends Controller
             'total_processed' => $pitchDecks->count()
         ]);
     }
+    /**
+ * Serve thumbnail file securely (no symlink needed).
+ */
+public function serveThumbnail($pitchDeckId)
+{
+    \Log::info('🎯 serveThumbnail called', [
+        'pitch_deck_id' => $pitchDeckId,
+        'ip' => request()->ip(),
+    ]);
+    
+    $pitchDeck = PitchDeck::findOrFail($pitchDeckId);
+    
+    \Log::info('📊 Pitch deck found', [
+        'id' => $pitchDeck->id,
+        'thumbnail_path' => $pitchDeck->thumbnail_path,
+        'exists_check' => $pitchDeck->thumbnail_path ? Storage::disk('public')->exists($pitchDeck->thumbnail_path) : false,
+    ]);
+    
+    if (!$pitchDeck->thumbnail_path || !Storage::disk('public')->exists($pitchDeck->thumbnail_path)) {
+        \Log::warning('⚠️ No thumbnail found, returning 404', ['pitch_deck_id' => $pitchDeckId]);
+        return response()->json(['error' => 'No thumbnail found'], 404);
+    }
+    
+    $filePath = Storage::disk('public')->path($pitchDeck->thumbnail_path);
+    $mimeType = Storage::disk('public')->mimeType($pitchDeck->thumbnail_path);
+    
+    \Log::info('✅ Returning thumbnail file', [
+        'path' => $filePath,
+        'size' => file_exists($filePath) ? filesize($filePath) : 0,
+    ]);
+    
+    return response()->file($filePath, [
+        'Content-Type' => $mimeType,
+        'Cache-Control' => 'public, max-age=86400'
+    ]);
+}
 }
