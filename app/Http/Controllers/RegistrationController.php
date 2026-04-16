@@ -12,6 +12,9 @@ use Laravel\Sanctum\PersonalAccessToken;
 use Illuminate\Support\Facades\Log;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\OtpMail;
+
 
 class RegistrationController extends Controller
 {
