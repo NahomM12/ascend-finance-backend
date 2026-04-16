@@ -40,6 +40,11 @@ Route::middleware('throttle:api')->group(function () {
     Route::post('/admin/register', [RegistrationController::class, 'adminRegister'])->middleware(['auth:sanctum', 'superadmin']);
     Route::post('/founder/create-profile', [RegistrationController::class, 'createFounderProfile']);
 
+    
+    Route::post('/otp/send', [OtpController::class, 'send'])->middleware('throttle:login');
+    Route::post('/verify-otp', [RegistrationController::class, 'verifyRegistrationOtp'])->middleware('throttle:login');
+    Route::post('/forgot-password/send-otp', [OtpController::class, 'sendForgotPasswordOtp'])->middleware('throttle:login');
+    Route::post('/forgot-password/verify-otp', [OtpController::class, 'verifyForgotPasswordOtp'])->middleware('throttle:login');
     // Pitch Deck Routes
     Route::get('/pitch-decks', [PitchDeckController::class, 'index'])->middleware('auth:sanctum');
     Route::get('/pitch-decks/{id}', [PitchDeckController::class, 'show'])->middleware('auth:sanctum');

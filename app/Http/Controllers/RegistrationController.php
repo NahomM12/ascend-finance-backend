@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Laravel\Sanctum\PersonalAccessToken;
 use Illuminate\Support\Facades\Log;
 use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Facades\Cache;
 
 class RegistrationController extends Controller
 {
@@ -99,12 +100,69 @@ class RegistrationController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
+        $email = $request->input('email');
+        $name = $request->input('name');
+        $password = $request->input('password');
+
+        $otp = (string) random_int(100000, 999999);
+        $expiresInMinutes = 10;
+
+        $otpKey = 'registration_otp:' . $email;
+        $dataKey = 'registration_data:' . $email;
+
+        Cache::put($otpKey, $otp, now()->addMinutes($expiresInMinutes));
+        Cache::put($dataKey, [
+            'name' => $name,
+            'email' => $email,
+            'password' => $password,
+        ], now()->addMinutes($expiresInMinutes));
+
+        Mail::to($email)->send(new \App\Mail\OtpMail($otp, $expiresInMinutes));
+
+        return response()->json([
+            'message' => 'OTP sent to your email address',
+        ], 200);
+    }
+
+    public function verifyRegistrationOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|string|email',
+            'otp' => 'required|string|size:6',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $email = $request->input('email');
+        $otp = $request->input('otp');
+
+        $otpKey = 'registration_otp:' . $email;
+        $dataKey = 'registration_data:' . $email;
+
+        $cachedOtp = Cache::get($otpKey);
+        $registrationData = Cache::get($dataKey);
+
+        if (!$cachedOtp || !$registrationData || $cachedOtp !== $otp) {
+            return response()->json(['error' => 'Invalid or expired OTP'], 422);
+        }
+
+        if (User::where('email', $email)->exists()) {
+            Cache::forget($otpKey);
+            Cache::forget($dataKey);
+            return response()->json(['error' => 'An account with this email already exists'], 409);
+        }
+
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'name' => $registrationData['name'],
+            'email' => $registrationData['email'],
+            'password' => Hash::make($registrationData['password']),
             'role' => 'investors',
         ]);
+
+        Cache::forget($otpKey);
+        Cache::forget($dataKey);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -114,6 +172,7 @@ class RegistrationController extends Controller
             'token_type' => 'Bearer',
         ], 201);
     }
+
 
     /**
      * Redirect to OAuth provider.
