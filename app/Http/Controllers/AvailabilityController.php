@@ -180,5 +180,13 @@ class AvailabilityController extends Controller
 
         return ((int) $h) * 60 + (int) $m;
     }
+
+    protected function minutesToTime(int $minutes): string
+    {
+        $h = floor($minutes / 60) % 24;
+        $m = $minutes % 60;
+
+        return sprintf('%02d:%02d', $h, $m);
+    }
 }
 

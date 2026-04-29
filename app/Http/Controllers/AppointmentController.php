@@ -101,53 +101,82 @@ class AppointmentController extends Controller
      */
     public function available()
     {
-        $now = Carbon::now();
-        $days = 14;
-        $endDate = $now->copy()->addDays($days - 1)->endOfDay();
+        try {
+            // Use UTC for storage and comparison
+            $now = Carbon::now('UTC');
+            // THIS IS WHERE YOU CONTROL HOW MANY DAYS OF AVAILABILITY ARE SHOWN TO INVESTORS
+            // Currently set to 14 days (this week + next week). Change this number to show more or fewer days.
+            $days = 30;
+            $endDate = $now->copy()->addDays($days - 1)->endOfDay();
 
-        $availability = AvailabilitySlot::all();
+            // Get all availability slots
+            $availability = AvailabilitySlot::all();
+            
+            if ($availability->isEmpty()) {
+                \Log::warning('No availability slots found in database');
+                return response()->json([]);
+            }
 
-        $bookings = Appointment::where('status', 'booked')
-            ->whereBetween('scheduled_at', [$now->copy()->startOfDay(), $endDate])
-            ->get();
+            $bookings = Appointment::where('status', 'booked')
+                ->whereBetween('scheduled_at', [$now->copy()->startOfDay(), $endDate])
+                ->get();
 
-        $slots = [];
+            $slots = [];
 
-        for ($date = $now->copy()->startOfDay(); $date->lte($endDate); $date->addDay()) {
-            $dayName = strtolower($date->format('l'));
+            // Admin timezone - stored times are in this timezone
+            // Based on the 3-hour offset reported, this appears to be UTC+3 (Africa/Addis_Ababa or similar)
+            $adminTimezone = 'Africa/Addis_Ababa';
 
-            $dayAvailability = $availability->where('day_of_week', $dayName);
-
-            foreach ($dayAvailability as $window) {
-                $startMinutes = $this->timeToMinutes($window->start_time);
-                $endMinutes = $this->timeToMinutes($window->end_time);
-                $increment = $window->increment_minutes;
-
-                for ($m = $startMinutes; $m + 60 <= $endMinutes; $m += $increment) {
-                    $slotStart = $date->copy()->addMinutes($m);
-                    if ($slotStart->lessThan($now)) {
+            // Generate slots for each day in the next 14 days based on day_of_week
+            for ($date = $now->copy()->startOfDay(); $date->lte($endDate); $date->addDay()) {
+                $dayName = strtolower($date->format('l'));
+                
+                foreach ($availability as $slot) {
+                    if ($slot->day_of_week !== $dayName) {
                         continue;
                     }
-                    $slotEnd = $slotStart->copy()->addHour();
+                    
+                    $startMinutes = $this->timeToMinutes($slot->start_time);
+                    $endMinutes = $this->timeToMinutes($slot->end_time);
+                    $increment = $slot->increment_minutes;
 
-                    $conflict = $bookings->first(function (Appointment $booking) use ($slotStart, $slotEnd) {
-                        $bookingStart = Carbon::parse($booking->scheduled_at);
-                        $bookingEnd = $bookingStart->copy()->addMinutes($booking->duration_minutes ?? 60);
+                    for ($m = $startMinutes; $m + 60 <= $endMinutes; $m += $increment) {
+                        // Create the slot time in admin's timezone first, then convert to UTC
+                        $slotStartInAdminTz = $date->copy()->setTimezone($adminTimezone)->startOfDay()->addMinutes($m);
+                        $slotStart = $slotStartInAdminTz->copy()->setTimezone('UTC');
+                        
+                        if ($slotStart->lessThan($now)) {
+                            continue;
+                        }
+                        $slotEnd = $slotStart->copy()->addHour();
 
-                        return $slotStart->lt($bookingEnd) && $slotEnd->gt($bookingStart);
-                    });
+                        $conflict = $bookings->first(function (Appointment $booking) use ($slotStart, $slotEnd) {
+                            $bookingStart = Carbon::parse($booking->scheduled_at, 'UTC');
+                            $bookingEnd = $bookingStart->copy()->addMinutes($booking->duration_minutes ?? 60);
 
-                    if (! $conflict) {
-                        $slots[] = [
-                            'scheduled_at' => $slotStart->toIso8601String(),
-                            'end_at' => $slotEnd->toIso8601String(),
-                        ];
+                            return $slotStart->lt($bookingEnd) && $slotEnd->gt($bookingStart);
+                        });
+
+                        if (! $conflict) {
+                            $slots[] = [
+                                'scheduled_at' => $slotStart->toIso8601String(),
+                                'end_at' => $slotEnd->toIso8601String(),
+                            ];
+                        }
                     }
                 }
             }
-        }
 
-        return response()->json($slots);
+            return response()->json($slots);
+        } catch (\Exception $e) {
+            \Log::error('Error in available method: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'error' => 'Failed to fetch available slots',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
