@@ -22,7 +22,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             FounderSeeder::class,
-            PitchDeckSeeder::class,
+           // PitchDeckSeeder::class,
             UserSeeder::class,
         ]);
     }

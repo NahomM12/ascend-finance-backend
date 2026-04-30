@@ -14,15 +14,23 @@ return new class extends Migration
     Schema::create('founders', function (Blueprint $table) {
         $table->id();
         $table->string('company_name')->nullable();
-        $table->string('sector')->nullable(); // Changed from 'industry' to 'sector'
+        $table->enum('sector', [
+    'Agriculture',
+    'Manufacturing',
+    'Finance',
+    'Healthcare',
+    'Education',
+    'Energy',
+    'Technology',
+    'Transportation',
+    'Tourism'
+])->nullable();
         $table->enum('location',['addis ababa', 'diredawa', 'hawassa','bahirdar','gondar','mekele'])->nullable(); // New field
-        $table->enum('funding_stage', [
-            'pre-seed', 
-            'seed', 
-            'series A', 
-            'series B', 
-            'series C', 
-            'IPO'
+        $table->enum('operational_stage', [
+            'pre-operational', 
+            'early-operations', 
+            'revenue-generating', 
+            'profitable/cash-flow positive'
         ])->nullable();
         $table->enum('valuation', [
             'pre seed under 1M$', 
@@ -33,7 +41,7 @@ return new class extends Migration
             'IPO 100M$+'
         ])->nullable(); // New field
         $table->string('years_of_establishment')->nullable(); // Renamed from 'years of establishment'
-        $table->decimal('funding_amount', 15, 2)->nullable();
+        $table->decimal('investment_size', 15, 2)->nullable();
         $table->text('description')->nullable();
         $table->string('file_path')->nullable();
         $table->enum('status', [
@@ -55,7 +63,7 @@ return new class extends Migration
         // Optional: Add index for better performance
         //$table->index('user_id');
         $table->index('sector');
-        $table->index('funding_stage');
+        $table->index('operational_stage');
     });
 }
 

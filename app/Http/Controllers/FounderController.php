@@ -58,8 +58,8 @@ class FounderController extends Controller
             $query->where('location', $request->input('location'));
         }
 
-        if ($request->filled('funding_stage')) {
-            $query->where('funding_stage', $request->input('funding_stage'));
+        if ($request->filled('operational_stage')) {
+            $query->where('operational_stage', $request->input('operational_stage'));
         }
 
         if ($request->filled('valuation')) {
@@ -70,16 +70,16 @@ class FounderController extends Controller
             $query->where('years_of_establishment', $request->input('years_of_establishment'));
         }
 
-        if ($request->filled('min_funding_amount')) {
-            $query->where('funding_amount', '>=', (float) $request->input('min_funding_amount'));
+        if ($request->filled('min_investment_size')) {
+            $query->where('investment_size', '>=', (float) $request->input('min_investment_size'));
         }
 
-        if ($request->filled('max_funding_amount')) {
-            $query->where('funding_amount', '<=', (float) $request->input('max_funding_amount'));
+        if ($request->filled('max_investment_size')) {
+            $query->where('investment_size', '<=', (float) $request->input('max_investment_size'));
         }
 
-        if ($request->filled('funding_amount')) {
-            $query->where('funding_amount', (float) $request->input('funding_amount'));
+        if ($request->filled('investment_size')) {
+            $query->where('investment_size', (float) $request->input('investment_size'));
         }
 
         if ($request->filled('description')) {
@@ -109,10 +109,10 @@ class FounderController extends Controller
             'company_name',
             'sector',
             'location',
-            'funding_stage',
+            'operational_stage',
             'valuation',
             'years_of_establishment',
-            'funding_amount',
+            'investment_size',
             'status',
             'number_of_employees',
             'created_at',
@@ -146,10 +146,10 @@ class FounderController extends Controller
             'company_name' => 'required|string|max:255',
             'sector' => 'required|string|max:255',
             'location' => 'required|string|in:addis ababa,diredawa,hawassa,bahirdar,gondar,mekele',
-            'funding_stage' => 'required|string|in:pre-seed,seed,series A,series B,series C,IPO',
+            'operational_stage' => 'required|string|in:pre-operational,early-operations,revenue-generating,profitable/cash-flow positive',
             'valuation' => 'required|string|in:pre seed under 1M$,seed 1M$ - 5M$,series A 5M$ - 10M$,series B 10M$ - 50M$,series C 50M$ - 100M$,IPO 100M$+',
             'years_of_establishment' => 'required|integer|min:1900|max:' . date('Y'),
-            'funding_amount' => 'required|numeric',
+            'investment_size' => 'required|numeric',
             'description' => 'required|string|max:10000',
             'number_of_employees' => 'required|string|in:1-10,11-50,51-200,201-500,501-1000,1001+',
             'pitch_deck_title' => 'required|string|max:255',
@@ -160,10 +160,10 @@ class FounderController extends Controller
             'company_name' => $validated['company_name'],
             'sector' => $validated['sector'],
             'location' => $validated['location'],
-            'funding_stage' => $validated['funding_stage'],
+            'operational_stage' => $validated['operational_stage'],
             'valuation' => $validated['valuation'],
             'years_of_establishment' => $validated['years_of_establishment'],
-            'funding_amount' => $validated['funding_amount'],
+            'investment_size' => $validated['investment_size'],
             'description' => $validated['description'],
             'number_of_employees' => $validated['number_of_employees'],
         ]);
@@ -266,10 +266,10 @@ class FounderController extends Controller
             'company_name' => 'sometimes|required|string|max:255',
             'sector' => 'sometimes|required|string|max:255',
             'location' => 'sometimes|required|string|in:addis ababa,diredawa,hawassa,bahirdar,gondar,mekele',
-            'funding_stage' => 'sometimes|required|string|in:pre-seed,seed,series A,series B,series C,IPO',
+            'operational_stage' => 'sometimes|required|string|in:pre-operational,early-operations,revenue-generating,profitable/cash-flow positive',
             'valuation' => 'sometimes|required|string|in:pre seed under 1M$,seed 1M$ - 5M$,series A 5M$ - 10M$,series B 10M$ - 50M$,series C 50M$ - 100M$,IPO 100M$+',
             'years_of_establishment' => 'sometimes|required|integer|min:1900|max:' . date('Y'),
-            'funding_amount' => 'sometimes|required|numeric',
+            'investment_size' => 'sometimes|required|numeric',
             'description' => 'sometimes|required|string|max:10000',
             'number_of_employees' => 'sometimes|required|string|in:1-10,11-50,51-200,201-500,501-1000,1001+',
             'status' => 'sometimes|required|string|in:pending,active,funded,archived',
@@ -326,7 +326,8 @@ class FounderController extends Controller
 
         return response()->json(null, 204);
     }
-    public function sectorAnalytics()
+    
+public function sectorAnalytics()
 {
     $cacheKey = 'sector_analytics';
     
@@ -336,12 +337,12 @@ class FounderController extends Controller
                 ->groupBy('sector')
                 ->orderBy('total', 'desc')
                 ->get(),
-            'avg_funding_by_sector' => Founders::select('sector', \DB::raw('AVG(funding_amount) as avg_funding'))
-                ->whereNotNull('funding_amount')
+            'avg_investment_by_sector' => Founders::select('sector', \DB::raw('AVG(investment_size) as avg_investment'))
+                ->whereNotNull('investment_size')
                 ->groupBy('sector')
                 ->get(),
-            'funding_stage_distribution' => Founders::select('funding_stage', \DB::raw('count(*) as total'))
-                ->groupBy('funding_stage')
+            'operational_stage_distribution' => Founders::select('operational_stage', \DB::raw('count(*) as total'))
+                ->groupBy('operational_stage')
                 ->get(),
         ];
     });

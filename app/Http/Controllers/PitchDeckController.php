@@ -33,21 +33,7 @@ class PitchDeckController extends Controller
     
     return response()->json($pitchDecks);
 }
-    // public function index()
-    // {
-    //     $pitchDecks = PitchDeck::with('founder')
-    //         ->get();
-    //     return response()->json($pitchDecks);
-    // }
-    
    
-
-
-    /**
-     * Store a newly created resource in storage.
-     * If a pitch deck already exists for the given founder_id,
-     * replace the existing file and metadata instead of creating a new record.
-     */
   public function store(Request $request)
 {
     try {
