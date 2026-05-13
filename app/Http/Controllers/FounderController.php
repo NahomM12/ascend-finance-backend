@@ -70,16 +70,22 @@ class FounderController extends Controller
             $query->where('years_of_establishment', $request->input('years_of_establishment'));
         }
 
-        if ($request->filled('min_investment_size')) {
-            $query->where('investment_size', '>=', (float) $request->input('min_investment_size'));
-        }
+        if ($request->filled('currency') && $request->input('currency') === 'USD') {
+            if ($request->filled('min_investment_size')) {
+                $query->where('investment_size_usd', '>=', (float) $request->input('min_investment_size'));
+            }
 
-        if ($request->filled('max_investment_size')) {
-            $query->where('investment_size', '<=', (float) $request->input('max_investment_size'));
-        }
+            if ($request->filled('max_investment_size')) {
+                $query->where('investment_size_usd', '<=', (float) $request->input('max_investment_size'));
+            }
+        } elseif ($request->filled('currency') && $request->input('currency') === 'ETB') {
+            if ($request->filled('min_investment_size')) {
+                $query->where('investment_size_etb', '>=', (float) $request->input('min_investment_size'));
+            }
 
-        if ($request->filled('investment_size')) {
-            $query->where('investment_size', (float) $request->input('investment_size'));
+            if ($request->filled('max_investment_size')) {
+                $query->where('investment_size_etb', '<=', (float) $request->input('max_investment_size'));
+            }
         }
 
         if ($request->filled('description')) {
@@ -149,7 +155,9 @@ class FounderController extends Controller
             'operational_stage' => 'required|string|in:pre-operational,early-operations,revenue-generating,profitable/cash-flow positive',
             'valuation' => 'required|string|in:pre seed under 1M$,seed 1M$ - 5M$,series A 5M$ - 10M$,series B 10M$ - 50M$,series C 50M$ - 100M$,IPO 100M$+',
             'years_of_establishment' => 'required|integer|min:1900|max:' . date('Y'),
-            'investment_size' => 'required|numeric',
+            'investment_size' => 'sometimes|numeric',
+            'investment_size_usd' => 'sometimes|numeric',
+            'investment_size_etb' => 'sometimes|numeric',
             'description' => 'required|string|max:10000',
             'number_of_employees' => 'required|string|in:1-10,11-50,51-200,201-500,501-1000,1001+',
             'pitch_deck_title' => 'required|string|max:255',
@@ -163,7 +171,9 @@ class FounderController extends Controller
             'operational_stage' => $validated['operational_stage'],
             'valuation' => $validated['valuation'],
             'years_of_establishment' => $validated['years_of_establishment'],
-            'investment_size' => $validated['investment_size'],
+            'investment_size' => $validated['investment_size'] ?? null,
+            'investment_size_usd' => $validated['investment_size_usd'] ?? null,
+            'investment_size_etb' => $validated['investment_size_etb'] ?? null,
             'description' => $validated['description'],
             'number_of_employees' => $validated['number_of_employees'],
         ]);
@@ -269,7 +279,9 @@ class FounderController extends Controller
             'operational_stage' => 'sometimes|required|string|in:pre-operational,early-operations,revenue-generating,profitable/cash-flow positive',
             'valuation' => 'sometimes|required|string|in:pre seed under 1M$,seed 1M$ - 5M$,series A 5M$ - 10M$,series B 10M$ - 50M$,series C 50M$ - 100M$,IPO 100M$+',
             'years_of_establishment' => 'sometimes|required|integer|min:1900|max:' . date('Y'),
-            'investment_size' => 'sometimes|required|numeric',
+            'investment_size' => 'sometimes|numeric',
+            'investment_size_usd' => 'sometimes|numeric',
+            'investment_size_etb' => 'sometimes|numeric',
             'description' => 'sometimes|required|string|max:10000',
             'number_of_employees' => 'sometimes|required|string|in:1-10,11-50,51-200,201-500,501-1000,1001+',
             'status' => 'sometimes|required|string|in:pending,active,funded,archived',

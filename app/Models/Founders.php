@@ -18,6 +18,8 @@ class Founders extends Model
         'valuation',//enum: pre seed under 1M$, seed 1M$ - 5M$, series A 5M$ - 10M$, series B 10M$ - 50M$, series C 50M$ - 100M$, IPO 100M$+
         'years_of_establishment',
         'investment_size',
+          'investment_size_usd',
+        'investment_size_etb',
         'description',
         'file_path',
         'status',
