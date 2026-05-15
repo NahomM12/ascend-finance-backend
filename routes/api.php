@@ -5,6 +5,7 @@ use App\Http\Controllers\FounderController;
 use App\Http\Controllers\PitchDeckController;
 use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\OtpController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\ThumbnailController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AvailabilityController;
@@ -15,6 +16,21 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 
+
+// Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+//     Route::get('/admin/analytics', [AnalyticsController::class, 'dashboard']);
+//     Route::get('/admin/activities', function () {
+//         return AdminActivity::with('adminUser')->latest()->limit(20)->get();
+//     });
+//     Route::get('/admin/downloads', function () {
+//         return PitchDeckDownload::with(['user', 'pitchDeck'])->orderByDesc('downloaded_at')->limit(20)->get();
+//     });
+
+//     Route::put('/pitch-decks/{id}', [PitchDeckController::class, 'update']);
+//     Route::delete('/pitch-decks/{id}', [PitchDeckController::class, 'destroy']);
+//     Route::post('/pitch-decks/{id}/file', [PitchDeckController::class, 'updateFile']);
+//     Route::put('/pitch-decks/{id}/status', [PitchDeckController::class, 'changeStatusByAdmin']);
+// });
 Route::middleware('throttle:api')->group(function () {
 
     Route::post('/login', [RegistrationController::class, 'login'])->middleware('throttle:login');
@@ -51,6 +67,7 @@ Route::middleware('throttle:api')->group(function () {
     // Public pitch deck browsing (published only)
     Route::get('/public/pitch-decks', [PitchDeckController::class, 'publicIndex']);
     Route::get('/public/pitch-decks/{id}', [PitchDeckController::class, 'publicShow']);
+     Route::post('/public/pitch-decks/{id}/track-view', [PitchDeckController::class, 'trackView']);
     Route::get('/pitch-decks/{id}/download', [PitchDeckController::class, 'download'])->middleware(['auth:sanctum']);
     Route::get('/pitch-decks/{id}/file', [PitchDeckController::class, 'accessFile'])->middleware(['auth:sanctum']);
     Route::post('/pitch-decks', [PitchDeckController::class, 'store'])->middleware('auth:sanctum');
@@ -67,7 +84,7 @@ Route::middleware('throttle:api')->group(function () {
     });
 
     Route::post('/pitch-decks/test-auth', [PitchDeckController::class, 'testAuth'])->middleware('auth:sanctum');
-
+    Route::get('/admin/analytics', [AnalyticsController::class, 'dashboard']);
     Route::get('/admin/activities', function () {
         return AdminActivity::with('adminUser')->latest()->limit(20)->get();
     })->middleware(['auth:sanctum', 'admin']);

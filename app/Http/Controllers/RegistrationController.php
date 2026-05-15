@@ -38,6 +38,11 @@ class RegistrationController extends Controller
 
         $user = User::where('email', $request->email)->firstOrFail();
 
+         if (!$user->is_active) {
+            Auth::logout();
+            return response()->json(['error' => 'Your account has been deactivated. Please contact the administrator.'], 403);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -83,6 +88,7 @@ class RegistrationController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
+            'is_active' => true,
         ]);
 
         return response()->json($user, 201);
@@ -162,6 +168,7 @@ class RegistrationController extends Controller
             'email' => $registrationData['email'],
             'password' => Hash::make($registrationData['password']),
             'role' => 'investors',
+            'is_active' => true,
         ]);
 
         Cache::forget($otpKey);
@@ -221,8 +228,13 @@ class RegistrationController extends Controller
                     'role' => 'investors', // Default role for OAuth users
                     'oauth_provider' => $provider,
                     'oauth_id' => $oauthUser->getId(),
+                    'is_active' => true,
                 ]);
             } else {
+                if (!$user->is_active) {
+                    $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+                    return redirect($frontendUrl . '/login?error=account_deactivated');
+                }
                 // Update OAuth info for existing user
                 $user->update([
                     'oauth_provider' => $provider,
@@ -272,6 +284,10 @@ class RegistrationController extends Controller
             
             if (!$user) {
                 return response()->json(['error' => 'No account found with this email. Please sign up first.'], 404);
+            }
+
+            if (!$user->is_active) {
+                return response()->json(['error' => 'Your account has been deactivated. Please contact the administrator.'], 403);
             }
 
             // Update OAuth info

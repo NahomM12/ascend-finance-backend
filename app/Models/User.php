@@ -27,6 +27,7 @@ class User extends Authenticatable
         'oauth_provider',
         'oauth_id',
         'role',
+        'is_active',
     ];
 
     /**
@@ -63,6 +64,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
      public function pitchDecks()

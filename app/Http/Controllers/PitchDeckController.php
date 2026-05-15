@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PitchDeck;
 use App\Models\PitchDeckDownload;
+use App\Models\PitchDeckView;
 use App\Models\AdminActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -289,7 +290,7 @@ class PitchDeckController extends Controller
     /**
      * Public detail for a published pitch deck.
      */
-    public function publicShow($id)
+    public function publicShow(Request $request, $id)
     {
         $cacheKey = "public_pitch_deck_{$id}";
         
@@ -301,7 +302,43 @@ class PitchDeckController extends Controller
 
         return response()->json($pitchDeck);
     }
+  /**
+     * Track a click/view on a pitch deck card.
+     */
+    public function trackView(Request $request, $id)
+    {
+        try {
+            $pitchDeck = PitchDeck::where('status', 'published')->findOrFail($id);
+            
+            // Prevent duplicate views from same IP/User within 30 minutes
+            $userId = $request->user()?->id;
+            $ipAddress = $request->ip();
+            
+            $existingView = PitchDeckView::where('pitch_deck_id', $pitchDeck->id)
+                ->where(function($query) use ($userId, $ipAddress) {
+                    if ($userId) {
+                        $query->where('user_id', $userId);
+                    } else {
+                        $query->where('ip_address', $ipAddress);
+                    }
+                })
+                ->where('viewed_at', '>=', now()->subMinutes(30))
+                ->exists();
 
+            if (!$existingView) {
+                PitchDeckView::create([
+                    'pitch_deck_id' => $pitchDeck->id,
+                    'user_id' => $userId,
+                    'ip_address' => $ipAddress,
+                    'viewed_at' => now(),
+                ]);
+            }
+
+            return response()->json(['message' => 'View tracked successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to track view'], 500);
+        }
+    }
     /**
      * Update the specified resource in storage.
      */

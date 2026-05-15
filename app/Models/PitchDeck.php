@@ -62,6 +62,10 @@ class PitchDeck extends Model
     {
         return $this->belongsTo(User::class);
     }
+    public function views()
+    {
+        return $this->hasMany(PitchDeckView::class);
+    }
     protected static function booted()
 {
    static::saved(function ($pitchDeck) {
