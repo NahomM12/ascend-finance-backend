@@ -9,6 +9,7 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\ThumbnailController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AvailabilityController;
+use App\Http\Controllers\SuperAdminController;
 use App\Models\AdminActivity;
 use App\Models\PitchDeckDownload;
 use Illuminate\Http\Request;
@@ -54,6 +55,15 @@ Route::middleware('throttle:api')->group(function () {
     Route::apiResource('founders', FounderController::class)->middleware('auth:sanctum');
 
     Route::post('/admin/register', [RegistrationController::class, 'adminRegister'])->middleware(['auth:sanctum', 'superadmin']);
+
+    // Super Admin Routes
+    Route::middleware(['auth:sanctum', 'superadmin'])->group(function () {
+        Route::put('/admin/profile', [SuperAdminController::class, 'updateProfile']);
+        Route::put('/admin/password', [SuperAdminController::class, 'updatePassword']);
+        Route::get('/admin/has-passcode', [SuperAdminController::class, 'hasPasscode']);
+        Route::put('/admin/passcode', [SuperAdminController::class, 'updatePasscode']);
+        Route::post('/admin/verify-passcode', [SuperAdminController::class, 'verifyPasscode']);
+    });
     Route::post('/founder/create-profile', [RegistrationController::class, 'createFounderProfile']);
 
     
