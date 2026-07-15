@@ -80,57 +80,6 @@ class PitchDeckController extends Controller
             'uploaded_by' => $user ? $user->id : null,
         ]);
 
-        // Generate thumbnail
-        try {
-            \Log::info('Starting thumbnail generation', [
-                'file_extension' => $extension,
-                'file_path' => $filePath
-            ]);
-            
-            if (in_array($extension, ['pdf', 'ppt', 'pptx'])) {
-                $originalPath = Storage::disk('public')->path($filePath);
-                \Log::info('Original file path', ['path' => $originalPath]);
-                
-                // Check if file exists before processing
-                if (!file_exists($originalPath)) {
-                    \Log::error('Original file not found for thumbnail', ['path' => $originalPath]);
-                    throw new \Exception('File not found: ' . $originalPath);
-                }
-                
-                $image = Image::make($originalPath . '[0]');
-                $image->resize(300, 200, function ($constraint) {
-                    $constraint->aspectRatio();
-                    $constraint->upsize();
-                });
-                $thumbnailFileName = 'thumbnail_' . $pitchDeck->id . '_' . time() . '.webp';
-                $thumbnailPath = 'pitch_decks/thumbnails/' . $thumbnailFileName;
-                
-                \Log::info('Saving thumbnail', ['thumbnail_path' => $thumbnailPath]);
-                Storage::disk('public')->put($thumbnailPath, $image->encode('webp', 85));
-                
-                // Verify thumbnail was created
-                $fullThumbnailPath = Storage::disk('public')->path($thumbnailPath);
-                \Log::info('Thumbnail saved', ['full_path' => $fullThumbnailPath, 'exists' => file_exists($fullThumbnailPath)]);
-                
-                $pitchDeck->thumbnail_path = $thumbnailPath;
-                $pitchDeck->save();
-                
-                \Log::info('Thumbnail generated successfully', [
-                    'pitch_deck_id' => $pitchDeck->id,
-                    'thumbnail_path' => $thumbnailPath
-                ]);
-            } else {
-                \Log::info('Skipping thumbnail generation for unsupported file type', ['extension' => $extension]);
-            }
-        } catch (\Throwable $e) {
-            \Log::error('Failed to generate thumbnail: ' . $e->getMessage(), [
-                'pitch_deck_id' => $pitchDeck->id,
-                'file_path' => $filePath,
-                'extension' => $extension,
-                'trace' => $e->getTraceAsString()
-            ]);
-        }
-
         // Log activity
         try {
             $this->logAdminActivity($request, 'create_pitchdeck', 'PitchDeck', $pitchDeck->id, [
@@ -163,105 +112,87 @@ class PitchDeckController extends Controller
     }
 }
 
-    /**
-     * Replace the file for an existing pitch deck.
-     */
-    public function updateFile(Request $request, $id)
-    {
-        try {
-            $user = $request->user();
+/**
+ * Replace the file for an existing pitch deck.
+ */
+public function updateFile(Request $request, $id)
+{
+    try {
+        $user = $request->user();
 
-            if (!$user) {
-                return response()->json(['message' => 'Unauthorized'], 401);
-            }
-
-            $validator = Validator::make($request->all(), [
-                'file' => 'required|file|mimes:pdf,ppt,pptx|max:20480',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json($validator->errors(), 422);
-            }
-
-            $pitchDeck = PitchDeck::findOrFail($id);
-
-            if ($pitchDeck->file_path && Storage::disk('public')->exists($pitchDeck->file_path)) {
-                Storage::disk('public')->delete($pitchDeck->file_path);
-            }
-            if ($pitchDeck->thumbnail_path && Storage::disk('public')->exists($pitchDeck->thumbnail_path)) {
-                Storage::disk('public')->delete($pitchDeck->thumbnail_path);
-            }
-
-            $file = $request->file('file');
-            $extension = strtolower($file->getClientOriginalExtension());
-
-            if (!in_array($extension, ['pdf', 'ppt', 'pptx'])) {
-                return response()->json([
-                    'file' => ['Invalid file type. Only PDF, PPT, and PPTX files are allowed.'],
-                ], 422);
-            }
-
-            $originalName = $file->getClientOriginalName();
-            $fileName = time() . '_' . Str::slug(pathinfo($originalName, PATHINFO_FILENAME)) . '.' . $extension;
-            $filePath = $file->storeAs('pitch_decks', $fileName, 'public');
-
-            if (!$filePath) {
-                throw new \Exception('Failed to store file');
-            }
-
-            $pitchDeck->file_path = $filePath;
-            $pitchDeck->file_type = $extension;
-            $pitchDeck->status = 'draft';
-            $pitchDeck->thumbnail_path = null;
-            $pitchDeck->uploaded_by = $user->id;
-            $pitchDeck->save();
-
-            try {
-                if (in_array($extension, ['pdf', 'ppt', 'pptx'])) {
-                    $originalPath = Storage::disk('public')->path($filePath);
-                    $image = Image::make($originalPath . '[0]');
-                    $image->resize(300, 200, function ($constraint) {
-                        $constraint->aspectRatio();
-                        $constraint->upsize();
-                    });
-                    $thumbnailFileName = 'thumbnail_' . $pitchDeck->id . '_' . time() . '.webp';
-                    $thumbnailPath = 'pitch_decks/thumbnails/' . $thumbnailFileName;
-                    Storage::disk('public')->put($thumbnailPath, $image->encode('webp', 85));
-                    $pitchDeck->thumbnail_path = $thumbnailPath;
-                    $pitchDeck->save();
-                }
-            } catch (\Throwable $e) {
-                \Log::warning('Failed to generate thumbnail in updateFile: ' . $e->getMessage());
-            }
-
-            try {
-                $this->logAdminActivity($request, 'replace_pitchdeck_file', 'PitchDeck', $pitchDeck->id, [
-                    'title' => $pitchDeck->title,
-                    'founder_id' => $pitchDeck->founder_id,
-                    'file_path' => $pitchDeck->file_path,
-                ]);
-            } catch (\Throwable $e) {
-                \Log::warning('Failed to log admin activity in updateFile: ' . $e->getMessage());
-            }
-
-            $fileUrl = asset('storage/' . $filePath);
-
-            return response()->json([
-                'message' => 'Pitch deck file updated successfully',
-                'pitch_deck' => $pitchDeck,
-                'file_url' => $fileUrl,
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Error in PitchDeckController@updateFile', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            return response()->json([
-                'error' => 'Internal server error',
-                'message' => $e->getMessage(),
-            ], 500);
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
         }
+
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|file|mimes:pdf,ppt,pptx|max:20480',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $pitchDeck = PitchDeck::findOrFail($id);
+
+        if ($pitchDeck->file_path && Storage::disk('public')->exists($pitchDeck->file_path)) {
+            Storage::disk('public')->delete($pitchDeck->file_path);
+        }
+        if ($pitchDeck->thumbnail_path && Storage::disk('public')->exists($pitchDeck->thumbnail_path)) {
+            Storage::disk('public')->delete($pitchDeck->thumbnail_path);
+        }
+
+        $file = $request->file('file');
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        if (!in_array($extension, ['pdf', 'ppt', 'pptx'])) {
+            return response()->json([
+                'file' => ['Invalid file type. Only PDF, PPT, and PPTX files are allowed.'],
+            ], 422);
+        }
+
+        $originalName = $file->getClientOriginalName();
+        $fileName = time() . '_' . Str::slug(pathinfo($originalName, PATHINFO_FILENAME)) . '.' . $extension;
+        $filePath = $file->storeAs('pitch_decks', $fileName, 'public');
+
+        if (!$filePath) {
+            throw new \Exception('Failed to store file');
+        }
+
+        $pitchDeck->file_path = $filePath;
+        $pitchDeck->file_type = $extension;
+        $pitchDeck->status = 'draft';
+        $pitchDeck->thumbnail_path = null;
+        $pitchDeck->uploaded_by = $user->id;
+        $pitchDeck->save();
+
+        try {
+            $this->logAdminActivity($request, 'replace_pitchdeck_file', 'PitchDeck', $pitchDeck->id, [
+                'title' => $pitchDeck->title,
+                'founder_id' => $pitchDeck->founder_id,
+                'file_path' => $pitchDeck->file_path,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('Failed to log admin activity in updateFile: ' . $e->getMessage());
+        }
+
+        $fileUrl = asset('storage/' . $filePath);
+
+        return response()->json([
+            'message' => 'Pitch deck file updated successfully',
+            'pitch_deck' => $pitchDeck,
+            'file_url' => $fileUrl,
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Error in PitchDeckController@updateFile', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+        return response()->json([
+            'error' => 'Internal server error',
+            'message' => $e->getMessage(),
+        ], 500);
     }
+}
 
     /**
      * Display the specified resource.

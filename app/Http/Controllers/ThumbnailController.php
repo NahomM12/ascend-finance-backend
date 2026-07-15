@@ -15,81 +15,81 @@ class ThumbnailController extends Controller
      * Upload thumbnail for a pitch deck.
      * Converts uploaded image to WebP format.
      */
-    public function upload(Request $request, $pitchDeckId)
-    {
-        $validator = Validator::make($request->all(), [
-            'thumbnail' => 'required|image|mimes:jpeg,png,jpg,gif,svg,bmp|max:5120', // 5MB max
-            'width' => 'nullable|integer|min:50|max:2000',
-            'height' => 'nullable|integer|min:50|max:2000',
-        ]);
+   public function upload(Request $request, $pitchDeckId)
+{
+    $validator = Validator::make($request->all(), [
+        'thumbnail' => 'required|image|mimes:jpeg,png,jpg,gif,svg,bmp|max:5120', // 5MB max
+        'width' => 'nullable|integer|min:50|max:2000',
+        'height' => 'nullable|integer|min:50|max:2000',
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
-
-        $pitchDeck = PitchDeck::findOrFail($pitchDeckId);
-        
-        // Check permissions - only owner or admin can upload thumbnail
-         $user = $request->user();
-         if ($pitchDeck->uploaded_by !== $user->id && !in_array($user->role, ['admin', 'superadmin'])) {
-             return response()->json(['message' => 'Unauthorized to update this pitch deck'], 403);
-         }
-
-        $imageFile = $request->file('thumbnail');
-        $width = $request->input('width', 300);
-        $height = $request->input('height', 200);
-        
-        try {
-            // Generate unique filename
-            $originalName = pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME);
-            $fileName = 'thumbnail_' . $pitchDeck->id . '_' . time() . '_' . Str::slug($originalName) . '.webp';
-            
-            // Create Intervention Image instance
-            $image = Image::read($imageFile);
-            // Scale image to fit within dimensions while maintaining aspect ratio
-             $image->scale(width: $width, height: $height);
-            // Resize if needed (maintain aspect ratio)
-            $image->resize($width, $height, function ($constraint) {
-                $constraint->aspectRatio();
-                $constraint->upsize(); // Prevent upsizing
-            });
-            
-            // Convert to WebP and optimize quality
-              $encodedImage = $image->encodeByExtension('webp', quality: 85);
-            
-            // Define storage path
-            $thumbnailPath = 'pitch_decks/thumbnails/' . $fileName;
-            
-            // Store in public disk
-             Storage::disk('public')->put($thumbnailPath, $encodedImage); 
-            
-            // Delete old thumbnail if exists
-            if ($pitchDeck->thumbnail_path && Storage::disk('public')->exists($pitchDeck->thumbnail_path)) {
-                Storage::disk('public')->delete($pitchDeck->thumbnail_path);
-            }
-            
-            // Update pitch deck
-            $pitchDeck->thumbnail_path = $thumbnailPath;
-            $pitchDeck->save();
-            
-            return response()->json([
-                'message' => 'Thumbnail uploaded successfully and converted to WebP',
-                'thumbnail_url' => asset('storage/' . $thumbnailPath),
-                'thumbnail_path' => $thumbnailPath,
-                'file_size' => Storage::disk('public')->size($thumbnailPath),
-                'dimensions' => ['width' => $image->width(), 'height' => $image->height()],
-                'pitch_deck' => $pitchDeck->only(['id', 'title', 'status'])
-            ], 200);
-            
-        } catch (\Exception $e) {
-            \Log::error('Failed to upload thumbnail for pitch deck ' . $pitchDeckId . ': ' . $e->getMessage());
-            
-            return response()->json([
-                'message' => 'Failed to process thumbnail',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+    if ($validator->fails()) {
+        return response()->json($validator->errors(), 422);
     }
+
+    $pitchDeck = PitchDeck::findOrFail($pitchDeckId);
+
+    // Check permissions - only owner or admin can upload thumbnail
+    $user = $request->user();
+    if ($pitchDeck->uploaded_by !== $user->id && !in_array($user->role, ['admin', 'superadmin'])) {
+        return response()->json(['message' => 'Unauthorized to update this pitch deck'], 403);
+    }
+
+    $imageFile = $request->file('thumbnail');
+    $width = $request->input('width', 300);
+    $height = $request->input('height', 200);
+
+    try {
+        // Generate unique filename, preserving the original extension
+        $originalName = pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME);
+        $extension = strtolower($imageFile->getClientOriginalExtension());
+        $fileName = 'thumbnail_' . $pitchDeck->id . '_' . time() . '_' . Str::slug($originalName) . '.' . $extension;
+
+        // Create Intervention Image instance
+        $image = Image::read($imageFile);
+
+        // Resize while maintaining aspect ratio (no upsizing beyond original)
+        $image->resize($width, $height, function ($constraint) {
+            $constraint->aspectRatio();
+            $constraint->upsize();
+        });
+
+        // Encode using the image's original format — no WebP conversion
+        $encodedImage = $image->encode();
+
+        // Define storage path
+        $thumbnailPath = 'pitch_decks/thumbnails/' . $fileName;
+
+        // Store in public disk
+        Storage::disk('public')->put($thumbnailPath, $encodedImage);
+
+        // Delete old thumbnail if exists
+        if ($pitchDeck->thumbnail_path && Storage::disk('public')->exists($pitchDeck->thumbnail_path)) {
+            Storage::disk('public')->delete($pitchDeck->thumbnail_path);
+        }
+
+        // Update pitch deck
+        $pitchDeck->thumbnail_path = $thumbnailPath;
+        $pitchDeck->save();
+
+        return response()->json([
+            'message' => 'Thumbnail uploaded successfully',
+            'thumbnail_url' => asset('storage/' . $thumbnailPath),
+            'thumbnail_path' => $thumbnailPath,
+            'file_size' => Storage::disk('public')->size($thumbnailPath),
+            'dimensions' => ['width' => $image->width(), 'height' => $image->height()],
+            'pitch_deck' => $pitchDeck->only(['id', 'title', 'status'])
+        ], 200);
+
+    } catch (\Exception $e) {
+        \Log::error('Failed to upload thumbnail for pitch deck ' . $pitchDeckId . ': ' . $e->getMessage());
+
+        return response()->json([
+            'message' => 'Failed to process thumbnail',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
     
     /**
      * Delete thumbnail for a pitch deck.
