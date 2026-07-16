@@ -96,8 +96,8 @@ Route::middleware('throttle:api')->group(function () {
     Route::post('/pitch-decks/test-auth', [PitchDeckController::class, 'testAuth'])->middleware('auth:sanctum');
     Route::get('/admin/analytics', [AnalyticsController::class, 'dashboard']);
     Route::get('/admin/activities', function () {
-        return AdminActivity::with('adminUser')->latest()->limit(20)->get();
-    })->middleware(['auth:sanctum', 'admin']);
+        return AdminActivity::with('adminUser')->latest()->get();
+    })->middleware(['auth:sanctum', 'superadmin']);
 
     Route::get('/admin/downloads', function () {
         return PitchDeckDownload::with(['user', 'pitchDeck'])->orderByDesc('downloaded_at')->limit(20)->get();
