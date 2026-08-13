@@ -24,7 +24,7 @@ class DatabaseSeeder extends Seeder
           //  FounderSeeder::class,
            // PitchDeckSeeder::class,
           //  UserSeeder::class,
-            SupportSeeder::class,
+            SuperAdminSeeder::class,
         ]);
     }
 }
